@@ -1,0 +1,122 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "./prisma"
+}
+
+model Author {
+  id        String     @id @default(cuid())
+  name      String
+  email     String?    @unique
+  role      Role       @default(ANONYMOUS)
+  struggles Struggle[] @relation("AuthorStruggles")
+  insights  Insight[]
+  ideas     Idea[]
+  votes     Vote[]     @relation("AuthorVotes")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@map("authors")
+}
+
+enum Role {
+  author    @map("author")
+  ADMIN     @map("admin")
+  ANONYMOUS @map("anonymous")
+
+  @@map("_author_role")
+}
+
+model Struggle {
+  id        String    @id @default(cuid())
+  author    Author    @relation("AuthorStruggles", fields: [authorId], references: [id])
+  authorId  String
+  anonymous Boolean   @default(true)
+  content   String
+  Votes     Vote[]    @relation("StruggleVotes")
+  Insights  Insight[]
+  Ideas     Idea[]
+  Tags      Tag[]     @relation("StruggleTags")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  tagId     String?
+
+  @@map("struggles")
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  Struggles Struggle[] @relation("StruggleTags")
+  createdAt DateTime   @default(now())
+
+  @@map("tags")
+}
+
+model Insight {
+  id         String   @id @default(cuid())
+  struggle   Struggle @relation(fields: [struggleId], references: [id])
+  struggleId String
+  content    String
+  votes      Vote[]   @relation("InsightVotes")
+  Author     Author?  @relation(fields: [authorId], references: [id])
+  authorId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@map("insights")
+}
+
+model Idea {
+  id         String   @id @default(cuid())
+  struggle   Struggle @relation(fields: [struggleId], references: [id])
+  struggleId String
+  content    String
+  votes      Vote[]   @relation("IdeaVotes")
+  Author     Author?  @relation(fields: [authorId], references: [id])
+  authorId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@map("ideas")
+}
+
+model Vote {
+  id       String   @id @default(cuid())
+  voteType VoteType
+
+  author   Author? @relation("AuthorVotes", fields: [authorId], references: [id])
+  authorId String?
+
+  struggleId String?
+  insightId  String?
+  ideaId     String?
+
+  struggle Struggle? @relation("StruggleVotes", fields: [struggleId], references: [id])
+  insight  Insight?  @relation("InsightVotes", fields: [insightId], references: [id])
+  idea     Idea?     @relation("IdeaVotes", fields: [ideaId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  // uniqueness for author
+  @@unique([authorId, struggleId], name: "unique_author_struggle_vote")
+  @@unique([authorId, insightId], name: "unique_author_insight_vote")
+  @@unique([authorId, ideaId], name: "unique_author_idea_vote")
+  // indexes
+  @@index([struggleId, voteType]) // For struggle
+  @@index([insightId, voteType]) // For insight
+  @@index([ideaId, voteType]) // For idea
+  @@map("votes")
+}
+
+enum VoteType {
+  UPVOTE   @map("upvote")
+  DOWNVOTE @map("downvote")
+
+  @@map("_vote_type")
+}
